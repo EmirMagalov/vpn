@@ -1,0 +1,99 @@
+version: '3.8'
+
+services:
+#  db:
+#    image: postgres:13
+#    environment:
+#      POSTGRES_DB: tz_lz_db
+#      POSTGRES_USER: tz_lz_admin
+#      POSTGRES_PASSWORD: 1234
+#    volumes:
+#      - postgres_data:/var/lib/postgresql/data
+
+  django:
+    build:
+      context: .
+      dockerfile: Dockerfile-django
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./taskmanager:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+    env_file: .env
+#    environment:
+#      - DEBUG=1
+#      - DJANGO_SETTINGS_MODULE=taskmanager.settings
+#      - CELERY_BROKER_URL=redis://redis:6379/0
+#      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+#      - DATABASE_URL=postgres://tz_lz_admin:1234@db/tz_lz_db
+    restart: on-failure
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile-django
+#    command: bash -c "celery -A taskmanager purge --force  && celery -A taskmanager worker --loglevel=info"
+    command: celery -A taskmanager worker --loglevel=info
+    depends_on:
+      - redis
+    volumes:
+      - ./taskmanager:/app
+    env_file: .env
+#    environment:
+#      - CELERY_BROKER_URL=redis://redis:6379/0
+#      - CELERY_RESULT_BACKEND=redis://redis:6379/1
+    restart: always
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile-django
+    command: celery -A taskmanager beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    depends_on:
+      - redis
+      - django
+    volumes:
+      - ./taskmanager:/app
+    env_file: .env
+    restart: always
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile-bot
+    volumes:
+      - ./bot:/bot
+    depends_on:
+      - redis
+    env_file: .env
+    environment:
+#      - DATABASE_URL=DATABASE_URL=postgres://tz_lz_admin:1234@db/tz_lz_db
+
+      - BOT_TOKEN=${TOKEN}
+    restart: always
+
+  redis:
+    image: redis:latest
+    command: redis-server --requirepass kedovpn2024  # Устанавливаем пароль
+    volumes:
+      - ./redis_data:/data
+    restart: always
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "kedovpn2024", "ping" ]  # Проверяем с паролем
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+#  fastapi-app:
+#    build:
+#      context: .
+#      dockerfile: Dockerfile-fast
+#    ports:
+#      - "8001:8001"
+#    volumes:
+#      - ./app:/app
+#    command: uvicorn fastlink:app --host 0.0.0.0 --port 8001
+
+
+#volumes:
+#  postgres_data:

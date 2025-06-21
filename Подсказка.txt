@@ -1,0 +1,45 @@
+from main.models import Subscription
+from django.utils import timezone
+
+for sub in Subscription.objects.all():
+    if sub.days:
+        sub.expires_at = timezone.now() + sub.days
+        sub.save()
+
+
+
+#20SEC
+from django_celery_beat.models import PeriodicTask, IntervalSchedule
+
+# Создаём интервал: каждые 20 секунд
+schedule, _ = IntervalSchedule.objects.get_or_create(
+    every=20,
+    period=IntervalSchedule.SECONDS
+)
+
+# Назначаем задачу
+PeriodicTask.objects.update_or_create(
+    name="Check Subscription Every 20s",
+    defaults={
+        "interval": schedule,
+        "task": "main.tasks.check_subscriptions"
+    }
+)
+
+
+#ЧАС
+
+from django_celery_beat.models import PeriodicTask, IntervalSchedule
+
+schedule, _ = IntervalSchedule.objects.get_or_create(
+    every=1,
+    period=IntervalSchedule.HOURS
+)
+
+PeriodicTask.objects.update_or_create(
+    name="Check Subscription Expirations",
+    defaults={
+        "interval": schedule,
+        "task": "main.tasks.check_subscriptions"
+    }
+)

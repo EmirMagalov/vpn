@@ -1,0 +1,12 @@
+FROM python:3.10.9
+
+WORKDIR /bot
+
+# Копируем файлы бота
+COPY ./bot /bot
+COPY requirements.txt ./
+# Устанавливаем зависимости
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+CMD ["python", "bot.py"]
